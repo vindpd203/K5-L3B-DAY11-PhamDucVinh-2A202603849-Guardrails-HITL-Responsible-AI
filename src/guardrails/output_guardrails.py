@@ -13,6 +13,7 @@ from google.adk import runners
 from google.adk.plugins import base_plugin
 
 from core.utils import chat_with_agent
+from core.config import DEMO_SECRETS
 
 
 # ============================================================
@@ -41,12 +42,16 @@ def content_filter(response: str) -> dict:
 
     # PII patterns to check
     PII_PATTERNS = {
-        # TODO: Add regex patterns for:
-        # - VN phone number: r"0\d{9,10}"
-        # - Email: r"[\w.-]+@[\w.-]+\.[a-zA-Z]{2,}"
-        # - National ID (CMND/CCCD): r"\b\d{9}\b|\b\d{12}\b"
-        # - API key pattern: r"sk-[a-zA-Z0-9-]+"
-        # - Password pattern: r"password\s*[:=]\s*\S+"
+        # \b stops a 12-digit CCCD being read as a phone; hotline "1900 545 467" stays.
+        "phone": r"\b0\d{9,10}\b",
+        "email": r"[\w.+-]+@[\w-]+(?:\.[\w-]+)*\.[a-zA-Z]{2,}",
+        # Lookahead keeps 9-digit VND amounts ("500000000 VND") from being redacted.
+        "national_id": r"\b(?:\d{9}|\d{12})\b(?!\s*(?:vnd|dong|đồng|đ\b))",
+        "api_key": r"\bsk-[A-Za-z0-9-]{6,}",
+        "password": r"\b(?:password|passwd|pwd|mật khẩu|mat khau)\s*(?:is|là|la|:|=)\s*\S+",
+        "internal_host": r"\b[\w.-]+\.internal(?::\d+)?\b",
+        # Exact DEMO secrets (incl. de-hyphenated variants) even without a "password is" cue.
+        "secret": "|".join(re.escape(s) for s in DEMO_SECRETS) or r"(?!x)x",
     }
 
     for name, pattern in PII_PATTERNS.items():
@@ -172,16 +177,28 @@ class OutputGuardrailPlugin(base_plugin.BasePlugin):
         if not response_text:
             return llm_response
 
-        # TODO: Implement logic:
-        # 1. Call content_filter(response_text)
-        #    - If issues found: replace llm_response.content with redacted version
-        #    - Increment self.redacted_count
-        # 2. If use_llm_judge: call llm_safety_check(response_text)
-        #    - If unsafe: replace llm_response.content with a safe message
-        #    - Increment self.blocked_count
-        # 3. Return llm_response (possibly modified)
+        filtered = content_filter(response_text)
+        if not filtered["safe"]:
+            self.redacted_count += 1
+            response_text = filtered["redacted"]
+            llm_response.content = types.Content(
+                role="model", parts=[types.Part.from_text(text=response_text)]
+            )
 
-        return llm_response  # TODO: modify if needed
+        if self.use_llm_judge:
+            # Judge sees the already-redacted text, so it never handles raw secrets.
+            verdict = await llm_safety_check(response_text)
+            if not verdict["safe"]:
+                self.blocked_count += 1
+                llm_response.content = types.Content(
+                    role="model",
+                    parts=[types.Part.from_text(
+                        text="[BLOCKED by output_guardrail] Xin lỗi, tôi không thể cung cấp "
+                        "thông tin này. / Sorry, I can't share that information."
+                    )],
+                )
+
+        return llm_response
 
 
 # ============================================================
