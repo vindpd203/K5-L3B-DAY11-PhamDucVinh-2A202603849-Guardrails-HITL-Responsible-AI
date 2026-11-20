@@ -1,5 +1,10 @@
 # Day 11 — Controlled Agent Security (2026)
 
+- **Họ và tên:** Phạm Đức Vinh
+- **MSSV:** 2A202603849
+- **Repo:** [K5-L3B-DAY11-PhamDucVinh-2A202603849-Guardrails-HITL-Responsible-AI](https://github.com/vindpd203/K5-L3B-DAY11-PhamDucVinh-2A202603849-Guardrails-HITL-Responsible-AI)
+- **Cách chạy:** `python src/main.py --part N` (từ gốc repo) · tự chấm: `python scripts/grade.py`
+
 > 👤 **Hình thức:** bài tập **cá nhân** (1 người / 1 MSSV).  
 > 🎯 **Mục tiêu:** đóng vai **Blue Team** để học cách xây Guardrails phòng thủ, rồi đóng vai **Red Team** để tấn công agent **Red** hoặc **Red Advance**.  
 > ✅ Làm theo **Checkpoint 1 → 5** trong [`CHECKPOINTS.md`](CHECKPOINTS.md) · nộp theo [`SUBMISSION.md`](SUBMISSION.md).
